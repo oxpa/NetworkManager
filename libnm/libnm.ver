@@ -1655,6 +1655,9 @@ global:
 
 libnm_1_24_0 {
 global:
+	nm_device_vrf_get_type;
+	nm_device_vrf_get_hw_address;
+	nm_device_vrf_get_table;
 	nm_setting_vrf_get_table;
 	nm_setting_vrf_get_type;
 } libnm_1_22_0;
