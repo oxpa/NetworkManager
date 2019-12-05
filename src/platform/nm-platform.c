@@ -2217,6 +2217,12 @@ nm_platform_link_get_lnk_vlan (NMPlatform *self, int ifindex, const NMPlatformLi
 	return _link_get_lnk (self, ifindex, NM_LINK_TYPE_VLAN, out_link);
 }
 
+const NMPlatformLnkVrf *
+nm_platform_link_get_lnk_vrf (NMPlatform *self, int ifindex, const NMPlatformLink **out_link)
+{
+	return _link_get_lnk (self, ifindex, NM_LINK_TYPE_VRF, out_link);
+}
+
 const NMPlatformLnkVxlan *
 nm_platform_link_get_lnk_vxlan (NMPlatform *self, int ifindex, const NMPlatformLink **out_link)
 {
@@ -2401,6 +2407,38 @@ nm_platform_link_vlan_add (NMPlatform *self,
 	        parent, vlanid, vlanflags);
 
 	if (!klass->vlan_add (self, name, parent, vlanid, vlanflags, out_link))
+		return -NME_UNSPEC;
+	return 0;
+}
+
+/**
+ * nm_platform_link_vrf_add:
+ * @self: platform instance
+ * @name: New interface name
+ * @props: properties of the new link
+ * @out_link: on success, the link object
+ *
+ * Create a VRF interface.
+ */
+int
+nm_platform_link_vrf_add (NMPlatform *self,
+                          const char *name,
+                          const NMPlatformLnkVrf *props,
+                          const NMPlatformLink **out_link)
+{
+	int r;
+
+	_CHECK_SELF (self, klass, -NME_BUG);
+
+	g_return_val_if_fail (props, -NME_BUG);
+
+	r = _link_add_check_existing (self, name, NM_LINK_TYPE_VRF, out_link);
+	if (r < 0)
+		return r;
+
+	_LOG2D ("link: adding link %s", nm_platform_lnk_vrf_to_string (props, NULL, 0));
+
+	if (!klass->link_vrf_add (self, name, props, out_link))
 		return -NME_UNSPEC;
 	return 0;
 }
@@ -5856,6 +5894,20 @@ nm_platform_lnk_vlan_to_string (const NMPlatformLnkVlan *lnk, char *buf, gsize l
 }
 
 const char *
+nm_platform_lnk_vrf_to_string (const NMPlatformLnkVrf *lnk, char *buf, gsize len)
+{
+	char *b;
+
+	if (!nm_utils_to_string_buffer_init_null (lnk, &buf, &len))
+		return buf;
+
+	b = buf;
+
+	nm_utils_strbuf_append (&b, &len, "vrf table %u", lnk->table);
+	return buf;
+}
+
+const char *
 nm_platform_lnk_vxlan_to_string (const NMPlatformLnkVxlan *lnk, char *buf, gsize len)
 {
 	char str_group[100];
@@ -7218,6 +7270,21 @@ nm_platform_lnk_vlan_cmp (const NMPlatformLnkVlan *a, const NMPlatformLnkVlan *b
 	NM_CMP_SELF (a, b);
 	NM_CMP_FIELD (a, b, id);
 	NM_CMP_FIELD (a, b, flags);
+	return 0;
+}
+
+void
+nm_platform_lnk_vrf_hash_update (const NMPlatformLnkVrf *obj, NMHashState *h)
+{
+	nm_hash_update_vals (h,
+	                     obj->table);
+}
+
+int
+nm_platform_lnk_vrf_cmp (const NMPlatformLnkVrf *a, const NMPlatformLnkVrf *b)
+{
+	NM_CMP_SELF (a, b);
+	NM_CMP_FIELD (a, b, table);
 	return 0;
 }
 

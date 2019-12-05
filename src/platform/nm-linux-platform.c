@@ -655,6 +655,7 @@ static const LinkDesc linktypes[] = {
 	{ NM_LINK_TYPE_TUN,           "tun",         "tun",         NULL },
 	{ NM_LINK_TYPE_VETH,          "veth",        "veth",        NULL },
 	{ NM_LINK_TYPE_VLAN,          "vlan",        "vlan",        "vlan" },
+	{ NM_LINK_TYPE_VRF,           "vrf",         "vrf",         "vrf" },
 	{ NM_LINK_TYPE_VXLAN,         "vxlan",       "vxlan",       "vxlan" },
 	{ NM_LINK_TYPE_WIREGUARD,     "wireguard",   "wireguard",   "wireguard" },
 
@@ -1753,6 +1754,8 @@ _parse_lnk_vlan (const char *kind, struct nlattr *info_data)
 #undef IFLA_VXLAN_MAX
 #define IFLA_VXLAN_MAX IFLA_VXLAN_LOCAL6
 
+#define IFLA_VRF_TABLE        1
+
 /* older kernel header might not contain 'struct ifla_vxlan_port_range'.
  * Redefine it. */
 struct nm_ifla_vxlan_port_range {
@@ -1843,6 +1846,33 @@ _parse_lnk_vxlan (const char *kind, struct nlattr *info_data)
 		props->l2miss = !!nla_get_u8 (tb[IFLA_VXLAN_L2MISS]);
 	if (tb[IFLA_VXLAN_L3MISS])
 		props->l3miss = !!nla_get_u8 (tb[IFLA_VXLAN_L3MISS]);
+
+	return obj;
+}
+
+static NMPObject *
+_parse_lnk_vrf (const char *kind, struct nlattr *info_data)
+{
+	static const struct nla_policy policy[] = {
+		[IFLA_VRF_TABLE]         = { .type = NLA_U32 },
+	};
+	NMPlatformLnkVrf *props;
+	struct nlattr *tb[G_N_ELEMENTS (policy)];
+	NMPObject *obj;
+
+	if (   !info_data
+	    || !nm_streq0 (kind, "vrf"))
+		return NULL;
+
+	if (nla_parse_nested_arr (tb, info_data, policy) < 0)
+		return NULL;
+
+	obj = nmp_object_new (NMP_OBJECT_TYPE_LNK_VRF, NULL);
+
+	props = &obj->lnk_vrf;
+
+	if (tb[IFLA_VRF_TABLE])
+		props->table = nla_get_u32 (tb[IFLA_VRF_TABLE]);
 
 	return obj;
 }
@@ -2796,6 +2826,9 @@ _new_from_nl_link (NMPlatform *platform, const NMPCache *cache, struct nlmsghdr 
 		break;
 	case NM_LINK_TYPE_VLAN:
 		lnk_data = _parse_lnk_vlan (nl_info_kind, nl_info_data);
+		break;
+	case NM_LINK_TYPE_VRF:
+		lnk_data = _parse_lnk_vrf (nl_info_kind, nl_info_data);
 		break;
 	case NM_LINK_TYPE_VXLAN:
 		lnk_data = _parse_lnk_vxlan (nl_info_kind, nl_info_data);
@@ -7592,6 +7625,43 @@ link_tun_add (NMPlatform *platform,
 }
 
 static gboolean
+link_vrf_add (NMPlatform *platform,
+              const char *name,
+              const NMPlatformLnkVrf *props,
+              const NMPlatformLink **out_link)
+{
+	nm_auto_nlmsg struct nl_msg *nlmsg = NULL;
+	struct nlattr *info;
+	struct nlattr *data;
+
+	g_return_val_if_fail (props, FALSE);
+
+	nlmsg = _nl_msg_new_link (RTM_NEWLINK,
+	                          NLM_F_CREATE | NLM_F_EXCL,
+	                          0,
+	                          name);
+	if (!nlmsg)
+		return FALSE;
+
+	if (!(info = nla_nest_start (nlmsg, IFLA_LINKINFO)))
+		goto nla_put_failure;
+
+	NLA_PUT_STRING (nlmsg, IFLA_INFO_KIND, "vrf");
+
+	if (!(data = nla_nest_start (nlmsg, IFLA_INFO_DATA)))
+		goto nla_put_failure;
+
+	NLA_PUT_U32 (nlmsg, IFLA_VRF_TABLE, props->table);
+
+	nla_nest_end (nlmsg, data);
+	nla_nest_end (nlmsg, info);
+
+	return (do_add_link_with_lookup (platform, NM_LINK_TYPE_VRF, name, nlmsg, out_link) >= 0);
+nla_put_failure:
+	g_return_val_if_reached (FALSE);
+}
+
+static gboolean
 link_vxlan_add (NMPlatform *platform,
                 const char *name,
                 const NMPlatformLnkVxlan *props,
@@ -9296,6 +9366,7 @@ nm_linux_platform_class_init (NMLinuxPlatformClass *klass)
 	platform_class->vlan_add = vlan_add;
 	platform_class->link_vlan_change = link_vlan_change;
 	platform_class->link_wireguard_change = link_wireguard_change;
+	platform_class->link_vrf_add = link_vrf_add;
 	platform_class->link_vxlan_add = link_vxlan_add;
 
 	platform_class->infiniband_partition_add = infiniband_partition_add;
