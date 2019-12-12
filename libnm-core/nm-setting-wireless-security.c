@@ -1356,8 +1356,10 @@ set_property (GObject *object, guint prop_id,
 /*****************************************************************************/
 
 static void
-nm_setting_wireless_security_init (NMSettingWirelessSecurity *setting)
+nm_setting_wireless_security_init (NMSettingWirelessSecurity *self)
 {
+	nm_assert (NM_SETTING_WIRELESS_SECURITY_GET_PRIVATE (self)->wep_key_type == NM_WEP_KEY_TYPE_UNKNOWN);
+	nm_assert (NM_SETTING_WIRELESS_SECURITY_GET_PRIVATE (self)->wps_method == NM_SETTING_WIRELESS_SECURITY_WPS_METHOD_DEFAULT);
 }
 
 /**
@@ -1458,7 +1460,6 @@ nm_setting_wireless_security_class_init (NMSettingWirelessSecurityClass *klass)
 	    g_param_spec_uint (NM_SETTING_WIRELESS_SECURITY_WEP_TX_KEYIDX, "", "",
 	                       0, 3, 0,
 	                       G_PARAM_READWRITE |
-	                       G_PARAM_CONSTRUCT |
 	                       G_PARAM_STATIC_STRINGS);
 
 	/**
@@ -1574,7 +1575,6 @@ nm_setting_wireless_security_class_init (NMSettingWirelessSecurityClass *klass)
 	    g_param_spec_int (NM_SETTING_WIRELESS_SECURITY_PMF, "", "",
 	                      G_MININT32, G_MAXINT32, 0,
 	                      G_PARAM_READWRITE |
-	                      G_PARAM_CONSTRUCT |
 	                      NM_SETTING_PARAM_FUZZY_IGNORE |
 	                      G_PARAM_STATIC_STRINGS);
 
@@ -1801,7 +1801,6 @@ nm_setting_wireless_security_class_init (NMSettingWirelessSecurityClass *klass)
 	                       NM_TYPE_WEP_KEY_TYPE,
 	                       NM_WEP_KEY_TYPE_UNKNOWN,
 	                       G_PARAM_READWRITE |
-	                       G_PARAM_CONSTRUCT |
 	                       G_PARAM_STATIC_STRINGS);
 	_nm_properties_override_gobj (properties_override,
 	                              obj_properties[PROP_WEP_KEY_TYPE],
@@ -1836,7 +1835,6 @@ nm_setting_wireless_security_class_init (NMSettingWirelessSecurityClass *klass)
 	    g_param_spec_uint (NM_SETTING_WIRELESS_SECURITY_WPS_METHOD, "", "",
 	                       0, G_MAXUINT32, NM_SETTING_WIRELESS_SECURITY_WPS_METHOD_DEFAULT,
 	                       G_PARAM_READWRITE |
-	                       G_PARAM_CONSTRUCT |
 	                       NM_SETTING_PARAM_FUZZY_IGNORE |
 	                       G_PARAM_STATIC_STRINGS);
 
@@ -1866,7 +1864,6 @@ nm_setting_wireless_security_class_init (NMSettingWirelessSecurityClass *klass)
 	    g_param_spec_int (NM_SETTING_WIRELESS_SECURITY_FILS, "", "",
 	                      G_MININT32, G_MAXINT32, 0,
 	                      G_PARAM_READWRITE |
-	                      G_PARAM_CONSTRUCT |
 	                      NM_SETTING_PARAM_FUZZY_IGNORE |
 	                      G_PARAM_STATIC_STRINGS);
 
