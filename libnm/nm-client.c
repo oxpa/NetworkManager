@@ -11,6 +11,7 @@
 #include <libudev.h>
 
 #include "nm-glib-aux/nm-dbus-aux.h"
+#include "nm-glib-aux/nm-time-utils.h"
 #include "nm-utils.h"
 #include "nm-manager.h"
 #include "nm-dns-manager.h"
@@ -77,6 +78,23 @@
 #include "nm-vpn-connection.h"
 
 /*****************************************************************************/
+
+static gint64 ts_previous;
+
+#define _LOG(...) \
+	({ \
+		gint64 _ts = nm_utils_get_monotonic_timestamp_ns (); \
+		\
+		g_print (">>> [%"G_GINT64_FORMAT".%05"G_GINT64_FORMAT"] [%"G_GINT64_FORMAT".%05"G_GINT64_FORMAT"] nmclient: " \
+		         _NM_UTILS_MACRO_FIRST (__VA_ARGS__) \
+		         "\n", \
+		         (_ts / NM_UTILS_NS_PER_SECOND), \
+		         ((_ts / (NM_UTILS_NS_PER_SECOND / 10000)) % 10000), \
+		         ((_ts - ts_previous) / NM_UTILS_NS_PER_SECOND), \
+		         (((_ts - ts_previous) / (NM_UTILS_NS_PER_SECOND / 10000)) % 10000) \
+		         _NM_UTILS_MACRO_REST (__VA_ARGS__)); \
+		ts_previous = _ts; \
+	})
 
 static void nm_client_initable_iface_init (GInitableIface *iface);
 static void nm_client_async_initable_iface_init (GAsyncInitableIface *iface);
@@ -3467,8 +3485,12 @@ name_owner_changed (GObject *object, GParamSpec *pspec, gpointer user_data)
 	NMClient *self = user_data;
 	NMClientPrivate *priv = NM_CLIENT_GET_PRIVATE (self);
 	GDBusObjectManager *object_manager = G_DBUS_OBJECT_MANAGER (object);
+	gs_free char *owner = NULL;
 
 	nm_assert (object_manager == priv->object_manager);
+
+	owner = g_dbus_object_manager_client_get_name_owner (G_DBUS_OBJECT_MANAGER_CLIENT (object_manager));
+	_LOG ("name owner changed: %s%s%s", NM_PRINT_FMT_QUOTE_STRING (owner));
 
 	if (_om_has_name_owner (object_manager)) {
 		g_signal_handlers_disconnect_by_data (priv->object_manager, self);

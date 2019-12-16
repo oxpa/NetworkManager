@@ -7,6 +7,7 @@
 
 #include "nm-secret-agent-old.h"
 
+#include "nm-glib-aux/nm-time-utils.h"
 #include "nm-dbus-interface.h"
 #include "nm-enum-types.h"
 #include "nm-dbus-helpers.h"
@@ -62,6 +63,24 @@ G_DEFINE_ABSTRACT_TYPE_WITH_CODE (NMSecretAgentOld, nm_secret_agent_old, G_TYPE_
 
 #define NM_SECRET_AGENT_OLD_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), NM_TYPE_SECRET_AGENT_OLD, NMSecretAgentOldPrivate))
 
+static gint64 ts_previous;
+
+#define _LOG(...) \
+	({ \
+		gint64 _ts = nm_utils_get_monotonic_timestamp_ns (); \
+		\
+		g_print (">>> [%"G_GINT64_FORMAT".%05"G_GINT64_FORMAT"] [%"G_GINT64_FORMAT".%05"G_GINT64_FORMAT"] secret-agent: " \
+		         _NM_UTILS_MACRO_FIRST (__VA_ARGS__) \
+		         "\n", \
+		         (_ts / NM_UTILS_NS_PER_SECOND), \
+		         ((_ts / (NM_UTILS_NS_PER_SECOND / 10000)) % 10000), \
+		         ((_ts - ts_previous) / NM_UTILS_NS_PER_SECOND), \
+		         (((_ts - ts_previous) / (NM_UTILS_NS_PER_SECOND / 10000)) % 10000) \
+		         _NM_UTILS_MACRO_REST (__VA_ARGS__)); \
+		ts_previous = _ts; \
+	})
+
+
 /*****************************************************************************/
 
 static void
@@ -111,6 +130,7 @@ name_owner_changed (GObject *proxy,
 	GetSecretsInfo *info;
 
 	owner = g_dbus_proxy_get_name_owner (G_DBUS_PROXY (proxy));
+	_LOG ("name owner changed: %s%s%s", NM_PRINT_FMT_QUOTE_STRING (owner));
 	if (owner) {
 		if (should_auto_register (self))
 			nm_secret_agent_old_register_async (self, NULL, NULL, NULL);
@@ -567,8 +587,11 @@ reg_request_cb (GObject *proxy,
 	self = NM_SECRET_AGENT_OLD (g_async_result_get_source_object (G_ASYNC_RESULT (simple)));
 	g_object_unref (self); /* drop extra ref added by get_source_object() */
 
-	if (!nmdbus_agent_manager_call_register_finish (NMDBUS_AGENT_MANAGER (proxy), result, &error))
+	if (!nmdbus_agent_manager_call_register_finish (NMDBUS_AGENT_MANAGER (proxy), result, &error)) {
+		_LOG ("register: failed: %s", error->message);
 		g_dbus_error_strip_remote_error (error);
+	} else
+		_LOG ("register: succeeded");
 	reg_result (self, simple, error);
 }
 
@@ -580,16 +603,20 @@ reg_with_caps_cb (GObject *proxy,
 	GSimpleAsyncResult *simple = user_data;
 	NMSecretAgentOld *self;
 	NMSecretAgentOldPrivate *priv;
+	gs_free_error GError *error = NULL;
 
 	self = NM_SECRET_AGENT_OLD (g_async_result_get_source_object (G_ASYNC_RESULT (simple)));
 	g_object_unref (self); /* drop extra ref added by get_source_object() */
 
 	priv = NM_SECRET_AGENT_OLD_GET_PRIVATE (self);
 
-	if (nmdbus_agent_manager_call_register_with_capabilities_finish (NMDBUS_AGENT_MANAGER (proxy), result, NULL)) {
+	if (nmdbus_agent_manager_call_register_with_capabilities_finish (NMDBUS_AGENT_MANAGER (proxy), result, &error)) {
+		_LOG ("register: register succeeded");
 		reg_result (self, simple, NULL);
 		return;
 	}
+
+	_LOG ("register: register failed with \"%s\". Retry without capabilties.", error->message);
 
 	/* Might be an old NetworkManager that doesn't support capabilities;
 	 * fall back to old Register() method instead.
@@ -662,6 +689,8 @@ nm_secret_agent_old_register_async (NMSecretAgentOld *self,
 
 	priv->suppress_auto = FALSE;
 	priv->registering = TRUE;
+
+	_LOG ("register: register starting...");
 
 	nmdbus_agent_manager_call_register_with_capabilities (priv->manager_proxy,
 	                                                      priv->identifier,
@@ -1107,6 +1136,13 @@ set_property (GObject *object,
 
 /*****************************************************************************/
 
+static gboolean
+_xxx (gpointer user_data)
+{
+	_LOG (".");
+	return G_SOURCE_CONTINUE;
+}
+
 static void
 nm_secret_agent_old_init (NMSecretAgentOld *self)
 {
@@ -1121,6 +1157,8 @@ nm_secret_agent_old_init (NMSecretAgentOld *self)
 	                       "DeleteSecrets", impl_secret_agent_old_delete_secrets,
 	                       "SaveSecrets", impl_secret_agent_old_save_secrets,
 	                       NULL);
+
+	g_timeout_add (10, _xxx, NULL);
 }
 
 static gboolean
