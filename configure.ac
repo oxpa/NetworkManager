@@ -662,6 +662,10 @@ if (test "${enable_polkit_agent}" = "yes"); then
 	if test x"$have_pk_agent" = x"no"; then
 		AC_MSG_ERROR(Polkit agent is required)
 	fi
+	POLKIT_PACKAGE_PREFIX=`$PKG_CONFIG --variable=prefix polkit-agent-1`
+	AC_DEFINE_UNQUOTED([POLKIT_PACKAGE_PREFIX],
+                       ["$POLKIT_PACKAGE_PREFIX"],
+                       [polkit-agent package prefix])
 	AC_DEFINE(WITH_POLKIT_AGENT, 1, [Define if you have polkit agent])
 else
 	AC_DEFINE(WITH_POLKIT_AGENT, 0, [Define if you have polkit agent])

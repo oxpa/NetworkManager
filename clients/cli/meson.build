@@ -27,7 +27,6 @@ deps = [
 
 if enable_polkit_agent
   sources += nm_polkit_listener
-  deps += polkit_agent_dep
 endif
 
 executable(
