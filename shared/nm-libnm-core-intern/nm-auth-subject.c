@@ -165,6 +165,13 @@ nm_auth_subject_new_internal (void)
                                           NULL));
 }
 
+/**
+ * nm_auth_subject_new_unix_process():
+ *
+ * Creates a new auth subject representing a give unix process.
+ *
+ * Returns: the new #NMAuthSubject
+ */
 NMAuthSubject *
 nm_auth_subject_new_unix_process (const char *dbus_sender, gulong pid, gulong uid)
 {
@@ -177,7 +184,7 @@ nm_auth_subject_new_unix_process (const char *dbus_sender, gulong pid, gulong ui
 }
 
 /**
- * nm_auth_subject_new_process():
+ * nm_auth_subject_new_unix_process_self():
  *
  * Creates a new auth subject representing the current executing process.
  *
