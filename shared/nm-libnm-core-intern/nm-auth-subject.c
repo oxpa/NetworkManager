@@ -23,6 +23,9 @@ enum {
 	PROP_UNIX_PROCESS_DBUS_SENDER,
 	PROP_UNIX_PROCESS_PID,
 	PROP_UNIX_PROCESS_UID,
+	PROP_UNIX_SESSION_ID,
+	PROP_UNIX_SESSION_CANCELLABLE,
+	PROP_DBUS_CONNECTION,
 
 	PROP_LAST,
 };
@@ -35,6 +38,13 @@ typedef struct {
 		guint64 start_time;
 		char *dbus_sender;
 	} unix_process;
+
+	struct {
+		char *id;
+	} unix_session;
+
+	GDBusConnection *dbus_connection;
+	GCancellable *cancellable;
 } NMAuthSubjectPrivate;
 
 struct _NMAuthSubject {
@@ -61,6 +71,10 @@ G_DEFINE_TYPE (NMAuthSubject, nm_auth_subject, G_TYPE_OBJECT)
 	CHECK_SUBJECT (self, error_value); \
 	g_return_val_if_fail (priv->subject_type == (expected_subject_type), error_value);
 
+#define LOGIND_BUS_NAME "org.freedesktop.login1"
+#define LOGIND_OBJ_PATH "/org/freedesktop/login1"
+#define LOGIND_MANAGER_INTERFACE "org.freedesktop.login1.Manager"
+
 const char *
 nm_auth_subject_to_string (NMAuthSubject *self, char *buf, gsize buf_len)
 {
@@ -75,6 +89,10 @@ nm_auth_subject_to_string (NMAuthSubject *self, char *buf, gsize buf_len)
 		break;
 	case NM_AUTH_SUBJECT_TYPE_INTERNAL:
 		g_strlcpy (buf, "internal", buf_len);
+		break;
+	case NM_AUTH_SUBJECT_TYPE_UNIX_SESSION:
+		g_snprintf (buf, buf_len, "unix-session[id=%s]",
+                    priv->unix_session.id);
 		break;
 	default:
 		g_strlcpy (buf, "invalid", buf_len);
@@ -124,6 +142,12 @@ nm_auth_subject_is_unix_process (NMAuthSubject *subject)
 	return nm_auth_subject_get_subject_type (subject) == NM_AUTH_SUBJECT_TYPE_UNIX_PROCESS;
 }
 
+gboolean
+nm_auth_subject_is_unix_session (NMAuthSubject *subject)
+{
+	return nm_auth_subject_get_subject_type (subject) == NM_AUTH_SUBJECT_TYPE_UNIX_SESSION;
+}
+
 gulong
 nm_auth_subject_get_unix_process_pid (NMAuthSubject *subject)
 {
@@ -148,6 +172,14 @@ nm_auth_subject_get_unix_process_dbus_sender (NMAuthSubject *subject)
 	return priv->unix_process.dbus_sender;
 }
 
+const char *
+nm_auth_subject_get_unix_session_id (NMAuthSubject *subject)
+{
+	CHECK_SUBJECT_TYPED (subject, NM_AUTH_SUBJECT_TYPE_UNIX_SESSION, NULL);
+
+	return priv->unix_session.id;
+}
+
 /*****************************************************************************/
 
 /**
@@ -162,6 +194,26 @@ nm_auth_subject_new_internal (void)
 {
 	return NM_AUTH_SUBJECT (g_object_new (NM_TYPE_AUTH_SUBJECT,
                                           NM_AUTH_SUBJECT_SUBJECT_TYPE, (int) NM_AUTH_SUBJECT_TYPE_INTERNAL,
+                                          NULL));
+}
+
+/**
+ * nm_auth_subject_new_internal():
+ *
+ * Creates a new auth subject representing the NetworkManager process itself.
+ *
+ * Returns: the new #NMAuthSubject
+ */
+NMAuthSubject *
+nm_auth_subject_new_unix_session (GDBusConnection *dbus_connection,
+                                  GCancellable *cancellable)
+{
+	g_return_val_if_fail (G_DBUS_CONNECTION (dbus_connection), NULL);
+
+	return NM_AUTH_SUBJECT (g_object_new (NM_TYPE_AUTH_SUBJECT,
+                                          NM_AUTH_SUBJECT_SUBJECT_TYPE, (int) NM_AUTH_SUBJECT_TYPE_UNIX_SESSION,
+                                          NM_AUTH_SUBJECT_DBUS_CONNECTION, dbus_connection,
+                                          NM_AUTH_SUBJECT_UNIX_SESSION_CANCELLABLE, cancellable,
                                           NULL));
 }
 
@@ -220,6 +272,15 @@ get_property (GObject *object, guint prop_id, GValue *value, GParamSpec *pspec)
 	case PROP_UNIX_PROCESS_UID:
 		g_value_set_ulong (value, priv->unix_process.uid);
 		break;
+	case PROP_UNIX_SESSION_ID:
+		g_value_set_string (value, priv->unix_session.id);
+		break;
+	case PROP_UNIX_SESSION_CANCELLABLE:
+		g_value_set_object (value, priv->cancellable);
+		break;
+	case PROP_DBUS_CONNECTION:
+		g_value_set_object (value, priv->dbus_connection);
+		break;
 	default:
 		 G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
 		 break;
@@ -239,7 +300,10 @@ set_property (GObject *object, guint prop_id, const GValue *value, GParamSpec *p
 	case PROP_SUBJECT_TYPE:
 		/* construct-only */
 		i = g_value_get_int (value);
-		g_return_if_fail (NM_IN_SET (i, (int) NM_AUTH_SUBJECT_TYPE_INTERNAL, (int) NM_AUTH_SUBJECT_TYPE_UNIX_PROCESS));
+		g_return_if_fail (NM_IN_SET (i,
+                                     (int) NM_AUTH_SUBJECT_TYPE_INTERNAL,
+                                     (int) NM_AUTH_SUBJECT_TYPE_UNIX_PROCESS,
+                                     (int) NM_AUTH_SUBJECT_TYPE_UNIX_SESSION));
 		subject_type = i;
 		priv->subject_type |= subject_type;
 		g_return_if_fail (priv->subject_type == subject_type);
@@ -268,6 +332,17 @@ set_property (GObject *object, guint prop_id, const GValue *value, GParamSpec *p
 			priv->unix_process.uid = id;
 		}
 		break;
+	case PROP_UNIX_SESSION_ID:
+		priv->unix_session.id = g_value_dup_string (value);
+		break;
+	case PROP_UNIX_SESSION_CANCELLABLE:
+		/* construct-only */
+		priv->cancellable = g_value_dup_object (value);
+		break;
+	case PROP_DBUS_CONNECTION:
+		/* construct-only */
+		priv->dbus_connection = g_value_dup_object (value);
+		break;
 	default:
 		 G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
 		 break;
@@ -282,13 +357,55 @@ _clear_private (NMAuthSubject *self)
 	priv->subject_type = NM_AUTH_SUBJECT_TYPE_INVALID;
 	priv->unix_process.pid = G_MAXULONG;
 	priv->unix_process.uid = G_MAXULONG;
-	g_clear_pointer (&priv->unix_process.dbus_sender, g_free);
+	nm_clear_g_free (&priv->unix_process.dbus_sender);
+
+	nm_clear_g_cancellable (&priv->cancellable);
+	nm_clear_g_free (&priv->unix_session.id);
+	g_clear_object (&priv->dbus_connection);
 }
 
 static void
 nm_auth_subject_init (NMAuthSubject *self)
 {
 	_clear_private (self);
+}
+
+static void
+retrieve_session_id (NMAuthSubject *self)
+{
+	NMAuthSubjectPrivate *priv = NM_AUTH_SUBJECT_GET_PRIVATE (self);
+	gs_unref_variant GVariant *ret_value = NULL;
+	GVariantIter iter;
+	char *session_id;
+	guint32 session_uid;
+	uid_t uid = getuid ();
+	gs_free_error GError *error = NULL;
+
+	ret_value = g_dbus_connection_call_sync (priv->dbus_connection,
+                                             LOGIND_BUS_NAME,
+                                             LOGIND_OBJ_PATH,
+                                             LOGIND_MANAGER_INTERFACE,
+                                             "ListSessions",
+                                             NULL,
+                                             G_VARIANT_TYPE ("(a(susso))"),
+                                             G_DBUS_CALL_FLAGS_NONE,
+                                             -1,
+                                             priv->cancellable,
+                                             &error);
+
+	if (ret_value) {
+		g_variant_iter_init (&iter, ret_value);
+
+		while (g_variant_iter_next (&iter, "(&su@s@s@o)",
+                                    &session_id,
+                                    &session_uid,
+                                    NULL, NULL, NULL)) {
+			if (session_uid == uid) {
+				priv->unix_session.id = g_strdup (session_id);
+				break;
+			}
+		}
+	}
 }
 
 static void
@@ -332,6 +449,9 @@ constructed (GObject *object)
 			 * start-time, but polkit is not. */
 		}
 		return;
+	case NM_AUTH_SUBJECT_TYPE_UNIX_SESSION:
+		retrieve_session_id (self);
+		return;
 	default:
 		break;
 	}
@@ -362,7 +482,7 @@ nm_auth_subject_class_init (NMAuthSubjectClass *config_class)
 	    (object_class, PROP_SUBJECT_TYPE,
 	     g_param_spec_int (NM_AUTH_SUBJECT_SUBJECT_TYPE, "", "",
 	                       NM_AUTH_SUBJECT_TYPE_INVALID,
-	                       NM_AUTH_SUBJECT_TYPE_UNIX_PROCESS,
+	                       NM_AUTH_SUBJECT_TYPE_UNIX_SESSION,
 	                       NM_AUTH_SUBJECT_TYPE_INVALID,
 	                       G_PARAM_READWRITE |
 	                       G_PARAM_CONSTRUCT_ONLY |
@@ -392,4 +512,28 @@ nm_auth_subject_class_init (NMAuthSubjectClass *config_class)
 	                          G_PARAM_CONSTRUCT_ONLY |
 	                          G_PARAM_STATIC_STRINGS));
 
+	g_object_class_install_property
+         (object_class, PROP_UNIX_SESSION_ID,
+          g_param_spec_string (NM_AUTH_SUBJECT_UNIX_SESSION_ID,
+                               "", "", "",
+                               G_PARAM_READABLE |
+                               G_PARAM_STATIC_STRINGS));
+
+	g_object_class_install_property
+         (object_class, PROP_UNIX_SESSION_CANCELLABLE,
+          g_param_spec_object (NM_AUTH_SUBJECT_UNIX_SESSION_CANCELLABLE,
+                               "", "",
+                               G_TYPE_CANCELLABLE,
+                               G_PARAM_WRITABLE |
+                               G_PARAM_CONSTRUCT_ONLY |
+                               G_PARAM_STATIC_STRINGS));
+
+	g_object_class_install_property
+         (object_class, PROP_DBUS_CONNECTION,
+          g_param_spec_object (NM_AUTH_SUBJECT_DBUS_CONNECTION,
+                               "", "",
+                               G_TYPE_DBUS_CONNECTION,
+                               G_PARAM_WRITABLE |
+                               G_PARAM_CONSTRUCT_ONLY |
+                               G_PARAM_STATIC_STRINGS));
 }

@@ -13,6 +13,7 @@
 
 #include "nm-polkit-listener.h"
 #include "common.h"
+#include "shared/nm-libnm-core-intern/nm-auth-subject.h"
 
 #if WITH_POLKIT_AGENT
 static char *
@@ -54,11 +55,15 @@ nmc_polkit_agent_init (NmCli* nmc, gboolean for_session, GError **error)
 
 	if (nmc && nmc->client && NM_IS_CLIENT (nmc->client)) {
 		dbus_connection = nm_client_get_dbus_connection (nmc->client);
+		NMAuthSubject *subject = nm_auth_subject_new_unix_session (dbus_connection, NULL);
+		g_print ("%s\n", nm_auth_subject_get_unix_session_id (subject));
 		listener = nm_polkit_listener_new (dbus_connection);
 	} else {
 		dbus_connection = g_bus_get_sync (G_BUS_TYPE_SYSTEM,
                                           NULL,
                                           error);
+		NMAuthSubject *subject = nm_auth_subject_new_unix_session (dbus_connection, NULL);
+		g_print ("%s\n", nm_auth_subject_get_unix_session_id (subject));
 		listener = nm_polkit_listener_new (dbus_connection);
 		g_object_unref (dbus_connection);
 	}
