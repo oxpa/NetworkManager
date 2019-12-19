@@ -816,7 +816,7 @@ create_and_realize (NMDevice *device,
                                             G_MAXUINT32,
                                             -1);
         if (val != -1) {
-            lnk_gre.output_key = val;
+            lnk_vti.output_key = val;
         }
 
         r = nm_platform_link_vti_add (nm_device_get_platform (device), iface, &lnk_vti, out_plink);
