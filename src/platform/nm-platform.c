@@ -5781,8 +5781,8 @@ nm_platform_lnk_vti_to_string (const NMPlatformLnkVti *lnk, char *buf, gsize len
                 lnk->remote ? nm_sprintf_buf (str_remote, " remote %s", nm_utils_inet4_ntop (lnk->remote, str_remote1)) : "",
                 lnk->local ? nm_sprintf_buf (str_local, " local %s", nm_utils_inet4_ntop (lnk->local, str_local1)) : "",
                 lnk->parent_ifindex ? nm_sprintf_buf (str_parent_ifindex, " dev %d", lnk->parent_ifindex) : "",
-                lnk->input_key ? nm_sprintf_buf (str_input_key, " ikey %s", lnk->input_key) : "",
-                lnk->output_key ? nm_sprintf_buf (str_output_key, " okey %s", lnk->output_key) : "");
+                lnk->input_key ? nm_sprintf_buf (str_input_key, " ikey %d", lnk->input_key) : "",
+                lnk->output_key ? nm_sprintf_buf (str_output_key, " okey %d", lnk->output_key) : "");
 
     return buf;
 }
