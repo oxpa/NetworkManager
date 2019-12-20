@@ -50,7 +50,7 @@ mode_changed (GObject    *object,
 	gboolean enable_keys;
 
 	mode = nm_setting_ip_tunnel_get_mode (s_ip_tunnel);
-	enable_keys = NM_IN_SET (mode, NM_IP_TUNNEL_MODE_GRE, NM_IP_TUNNEL_MODE_IP6GRE);
+	enable_keys = NM_IN_SET (mode, NM_IP_TUNNEL_MODE_VTI, NM_IP_TUNNEL_MODE_GRE, NM_IP_TUNNEL_MODE_IP6GRE);
 	nmt_newt_widget_set_visible (NMT_NEWT_WIDGET (priv->input_key), enable_keys);
 	nmt_newt_widget_set_visible (NMT_NEWT_WIDGET (priv->output_key), enable_keys);
 
