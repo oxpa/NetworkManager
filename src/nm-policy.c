@@ -1261,19 +1261,25 @@ auto_activate_device (NMPolicy *self,
 		NMSettingConnection *s_con;
 		const char *permission;
 
-		if (nm_settings_connection_autoconnect_is_blocked (candidate))
+		if (nm_settings_connection_autoconnect_is_blocked (candidate)) {
+	        _LOGI (LOGD_DEVICE, "autoconnect blocked for %s", nm_settings_connection_get_id (candidate));
 			continue;
+        }
 
 		cand_conn = nm_settings_connection_get_connection (candidate);
 
 		s_con = nm_connection_get_setting_connection (cand_conn);
-		if (!nm_setting_connection_get_autoconnect (s_con))
+		if (!nm_setting_connection_get_autoconnect (s_con)) {
+	        _LOGI (LOGD_DEVICE, "settings autoconnect not set for %s", nm_settings_connection_get_id (candidate));
 			continue;
+        }
 
 		permission = nm_utils_get_shared_wifi_permission (cand_conn);
 		if (   permission
-		    && !nm_settings_connection_check_permission (candidate, permission))
+		    && !nm_settings_connection_check_permission (candidate, permission)) {
+	        _LOGI (LOGD_DEVICE, "autoconnect not allowed for %s", nm_settings_connection_get_id (candidate));
 			continue;
+        }
 
 		if (nm_device_can_auto_connect (device, candidate, &specific_object)) {
 			best_connection = candidate;
