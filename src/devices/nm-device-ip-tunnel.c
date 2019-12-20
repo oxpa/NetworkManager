@@ -527,6 +527,7 @@ check_connection_compatible (NMDevice *device, NMConnection *connection, GError 
 	const char *parent;
 
 	if (!NM_DEVICE_CLASS (nm_device_ip_tunnel_parent_class)->check_connection_compatible (device, connection, error))
+		_LOGD (LOGD_PLATFORM, "parent incompatible");
 		return FALSE;
 
 	s_ip_tunnel = nm_connection_get_setting_ip_tunnel (connection);
@@ -534,6 +535,7 @@ check_connection_compatible (NMDevice *device, NMConnection *connection, GError 
 	if (nm_setting_ip_tunnel_get_mode (s_ip_tunnel) != priv->mode) {
 		nm_utils_error_set_literal (error, NM_UTILS_ERROR_CONNECTION_AVAILABLE_TEMPORARY,
 		                            "incompatible IP tunnel mode");
+		_LOGD (LOGD_PLATFORM, "mode incompatible");
 		return FALSE;
 	}
 
@@ -543,6 +545,7 @@ check_connection_compatible (NMDevice *device, NMConnection *connection, GError 
 		if (parent && !nm_device_match_parent (device, parent)) {
 			nm_utils_error_set_literal (error, NM_UTILS_ERROR_CONNECTION_AVAILABLE_TEMPORARY,
 			                            "IP tunnel parent mismatches");
+		    _LOGD (LOGD_PLATFORM, "parent mismatch");
 			return FALSE;
 		}
 
@@ -551,6 +554,7 @@ check_connection_compatible (NMDevice *device, NMConnection *connection, GError 
 		                       priv->local)) {
 			nm_utils_error_set_literal (error, NM_UTILS_ERROR_CONNECTION_AVAILABLE_TEMPORARY,
 			                            "local IP tunnel address mismatches");
+		    _LOGD (LOGD_PLATFORM, "local ip mismatch");
 			return FALSE;
 		}
 
@@ -559,18 +563,21 @@ check_connection_compatible (NMDevice *device, NMConnection *connection, GError 
 		                       priv->remote)) {
 			nm_utils_error_set_literal (error, NM_UTILS_ERROR_CONNECTION_AVAILABLE_TEMPORARY,
 			                            "remote IP tunnel address mismatches");
+		    _LOGD (LOGD_PLATFORM, "remote ip mismatch");
 			return FALSE;
 		}
 
 		if (nm_setting_ip_tunnel_get_ttl (s_ip_tunnel) != priv->ttl) {
 			nm_utils_error_set_literal (error, NM_UTILS_ERROR_CONNECTION_AVAILABLE_TEMPORARY,
 			                            "TTL of IP tunnel mismatches");
+		    _LOGD (LOGD_PLATFORM, "ttl mismatch");
 			return FALSE;
 		}
 
 		if (nm_setting_ip_tunnel_get_tos (s_ip_tunnel) != priv->tos) {
 			nm_utils_error_set_literal (error, NM_UTILS_ERROR_CONNECTION_AVAILABLE_TEMPORARY,
 			                            "TOS of IP tunnel mismatches");
+		    _LOGD (LOGD_PLATFORM, "tos mismatch");
 			return FALSE;
 		}
 
@@ -578,23 +585,27 @@ check_connection_compatible (NMDevice *device, NMConnection *connection, GError 
 			if (nm_setting_ip_tunnel_get_path_mtu_discovery (s_ip_tunnel) != priv->path_mtu_discovery) {
 				nm_utils_error_set_literal (error, NM_UTILS_ERROR_CONNECTION_AVAILABLE_TEMPORARY,
 				                            "MTU discovery setting of IP tunnel mismatches");
+		        _LOGD (LOGD_PLATFORM, "mtu discovery mismatch");
 				return FALSE;
 			}
 		} else {
 			if (nm_setting_ip_tunnel_get_encapsulation_limit (s_ip_tunnel) != priv->encap_limit) {
 				nm_utils_error_set_literal (error, NM_UTILS_ERROR_CONNECTION_AVAILABLE_TEMPORARY,
 				                            "encapsulation limit of IP tunnel mismatches");
+		        _LOGD (LOGD_PLATFORM, "encapsulation limit mismatch");
 				return FALSE;
 			}
 
 			if (nm_setting_ip_tunnel_get_flow_label (s_ip_tunnel) != priv->flow_label) {
 				nm_utils_error_set_literal (error, NM_UTILS_ERROR_CONNECTION_AVAILABLE_TEMPORARY,
 				                            "flow-label of IP tunnel mismatches");
+		        _LOGD (LOGD_PLATFORM, "flow label mismatch");
 				return FALSE;
 			}
 		}
 	}
 
+    _LOGD (LOGD_PLATFORM, "iptunnel matches");
 	return TRUE;
 }
 
