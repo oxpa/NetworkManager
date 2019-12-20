@@ -1237,15 +1237,21 @@ auto_activate_device (NMPolicy *self,
 	// but another connection now overrides the current one for that device,
 	// deactivate the device and activate the new connection instead of just
 	// bailing if the device is already active
-	if (nm_device_get_act_request (device))
+	if (nm_device_get_act_request (device)) {
+	    _LOGI (LOGD_DEVICE, "already activating - returning");
 		return;
+    }
 
-	if (!nm_device_autoconnect_allowed (device))
+	if (!nm_device_autoconnect_allowed (device)) {
+	    _LOGI (LOGD_DEVICE, "autoactivating not allowed");
 		return;
+    }
 
 	connections = nm_manager_get_activatable_connections (priv->manager, TRUE, TRUE, &len);
-	if (!connections[0])
+	if (!connections[0]) {
+	    _LOGI (LOGD_DEVICE, "no activateable connections - returning");
 		return;
+    }
 
 	/* Find the first connection that should be auto-activated */
 	best_connection = NULL;
@@ -1275,8 +1281,10 @@ auto_activate_device (NMPolicy *self,
 		}
 	}
 
-	if (!best_connection)
+	if (!best_connection) {
+	    _LOGI (LOGD_DEVICE, "no 'best_connection' to activate - returning");
 		return;
+    }
 
 	_LOGI (LOGD_DEVICE, "auto-activating connection '%s' (%s)",
 	       nm_settings_connection_get_id (best_connection),
