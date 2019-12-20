@@ -5596,11 +5596,16 @@ nm_device_can_auto_connect (NMDevice *self,
 	                                           nm_settings_connection_get_connection (sett_conn),
 	                                           NM_DEVICE_CHECK_CON_AVAILABLE_NONE,
 	                                           NULL,
-	                                           NULL))
+	                                           NULL)) {
+		_LOGD (LOGD_DEVICE, "connection is not available for device ");
 		return FALSE;
+    }
 
-	if (!NM_DEVICE_GET_CLASS (self)->can_auto_connect (self, sett_conn, specific_object))
+	if (!NM_DEVICE_GET_CLASS (self)->can_auto_connect (self, sett_conn, specific_object)) {
+		_LOGD (LOGD_DEVICE, "device can't autoconnect");
 		return FALSE;
+    }
+    _LOGD (LOGD_DEVICE, "device can autoconnect, returning true");
 
 	return TRUE;
 }

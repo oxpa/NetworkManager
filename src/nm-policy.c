@@ -1261,6 +1261,7 @@ auto_activate_device (NMPolicy *self,
 		NMSettingConnection *s_con;
 		const char *permission;
 
+	    _LOGI (LOGD_DEVICE, "inspecting autoconnect candidate %s", nm_settings_connection_get_id (candidate));
 		if (nm_settings_connection_autoconnect_is_blocked (candidate)) {
 	        _LOGI (LOGD_DEVICE, "autoconnect blocked for %s", nm_settings_connection_get_id (candidate));
 			continue;
@@ -1282,6 +1283,7 @@ auto_activate_device (NMPolicy *self,
         }
 
 		if (nm_device_can_auto_connect (device, candidate, &specific_object)) {
+	        _LOGI (LOGD_DEVICE, "found autoconnect candidate: %s", nm_settings_connection_get_id (candidate));
 			best_connection = candidate;
 			break;
 		}
