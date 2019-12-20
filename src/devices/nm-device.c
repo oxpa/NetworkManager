@@ -14475,12 +14475,14 @@ _nm_device_check_connection_available (NMDevice *self,
 					                    local->message);
 					g_error_free (local);
 				}
+		        _LOGD (LOGD_DEVICE, "connection not compatible ");
 				return FALSE;
 			}
 			return TRUE;
 		}
 		nm_utils_error_set_literal (error, NM_UTILS_ERROR_CONNECTION_AVAILABLE_UNMANAGED_DEVICE,
 		                            "hardware device is not realized");
+		_LOGD (LOGD_DEVICE, "device is not real and not software ");
 		return FALSE;
 	}
 
@@ -14488,6 +14490,7 @@ _nm_device_check_connection_available (NMDevice *self,
 	if (state < NM_DEVICE_STATE_UNMANAGED) {
 		nm_utils_error_set_literal (error, NM_UTILS_ERROR_CONNECTION_AVAILABLE_UNMANAGED_DEVICE,
 		                            "device is in unknown state");
+		_LOGD (LOGD_DEVICE, "device is real and not managed ");
 		return FALSE;
 	}
 	if (state < NM_DEVICE_STATE_UNAVAILABLE) {
@@ -14518,6 +14521,7 @@ _nm_device_check_connection_available (NMDevice *self,
 				nm_utils_error_set_literal (error, NM_UTILS_ERROR_CONNECTION_AVAILABLE_TEMPORARY,
 				                            "device is not available for internal request");
 			}
+		    _LOGD (LOGD_DEVICE, "device is DISCONNECTED and not software ");
 			return FALSE;
 		}
 	}
@@ -14533,6 +14537,7 @@ _nm_device_check_connection_available (NMDevice *self,
 			                    local->message);
 			g_error_free (local);
 		}
+		_LOGD (LOGD_DEVICE, "device is not compatible ");
 		return FALSE;
 	}
 
@@ -14645,6 +14650,7 @@ check_connection_available (NMDevice *self,
 
 	nm_utils_error_set_literal (error, NM_UTILS_ERROR_CONNECTION_AVAILABLE_TEMPORARY,
 	                            "device has no carrier");
+    _LOGD (LOGD_DEVICE, "connection not available (no carrier?) ");
 	return FALSE;
 }
 
